@@ -4,19 +4,39 @@ import { Ionicons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
 import { calcLevel, calcLevelProgress, XP_PER_LEVEL } from '../constants/xp';
 import { todayStr } from '../utils/dateUtils';
+import type { DailyRecord } from '../types/habit.types';
 
 const DAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
 const ACCENT = '#8B5CF6';
 
-/** Son 7 güne ait tamamlama yüzdesini döner */
-function useLast7Days(records: ReturnType<typeof useContext<typeof AppContext>>['records'], habitCount: number) {
+// ─── Hook ─────────────────────────────────────────────────────────────────
+
+/**
+ * Son 7 güne ait tamamlama oranlarını hesaplar.
+ *
+ * Önceki kodda `ReturnType<typeof useContext<typeof AppContext>>['records']`
+ * yazılmıştı — useContext generic parametre almaz, bu tip geçersizdi.
+ * Doğrusu parametre tipini açıkça `DailyRecord[]` olarak belirtmek.
+ */
+function useLast7Days(
+    records: DailyRecord[],
+    habitCount: number,
+) {
     return useMemo(() => {
         return Array.from({ length: 7 }, (_, i) => {
             const d = new Date();
             d.setDate(d.getDate() - (6 - i));
-            const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            const done = records.filter(r => r.date === dateStr && r.status === 'done').length;
+            const dateStr = [
+                d.getFullYear(),
+                String(d.getMonth() + 1).padStart(2, '0'),
+                String(d.getDate()).padStart(2, '0'),
+            ].join('-');
+
+            const done = records.filter(
+                r => r.date === dateStr && r.status === 'done',
+            ).length;
             const total = habitCount || 1;
+
             return {
                 day: DAYS[d.getDay() === 0 ? 6 : d.getDay() - 1],
                 ratio: Math.min(done / total, 1),
@@ -26,22 +46,29 @@ function useLast7Days(records: ReturnType<typeof useContext<typeof AppContext>>[
     }, [records, habitCount]);
 }
 
+// ─── Ekran ────────────────────────────────────────────────────────────────
+
 export default function ProgressScreen() {
     const { userProgress, records, habits } = useContext(AppContext);
     const level = calcLevel(userProgress.totalXp);
     const levelProgress = calcLevelProgress(userProgress.totalXp);
     const xpInLevel = userProgress.totalXp % XP_PER_LEVEL;
-    const week = useLast7Days(records, habits.filter(h => h.isActive).length);
 
+    const activeHabits = habits.filter(h => h.isActive);
+    const week = useLast7Days(records, activeHabits.length);
+
+    const today = todayStr();
     const todayDone = records.filter(
-        r => r.date === todayStr() && r.status === 'done',
+        r => r.date === today && r.status === 'done',
     ).length;
-    const todayTotal = habits.filter(h => h.isActive).length;
+    const todayTotal = activeHabits.length;
 
     return (
         <SafeAreaView style={styles.safe}>
-            <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-
+            <ScrollView
+                contentContainerStyle={styles.scroll}
+                showsVerticalScrollIndicator={false}
+            >
                 <Text style={styles.pageTitle}>İlerleme</Text>
 
                 {/* Level kartı */}
@@ -56,16 +83,20 @@ export default function ProgressScreen() {
                             <Text style={styles.xpCircleLabel}>XP</Text>
                         </View>
                     </View>
-
                     <View style={styles.progressBg}>
-                        <View style={[styles.progressFill, { width: `${levelProgress * 100}%` }]} />
+                        <View
+                            style={[
+                                styles.progressFill,
+                                { width: `${levelProgress * 100}%` },
+                            ]}
+                        />
                     </View>
                     <Text style={styles.progressHint}>
                         {xpInLevel} / {XP_PER_LEVEL} XP — sonraki seviye
                     </Text>
                 </View>
 
-                {/* Stat kartları 2x2 */}
+                {/* Stat kartları */}
                 <View style={styles.statGrid}>
                     <StatCard
                         icon="flame"
@@ -105,12 +136,21 @@ export default function ProgressScreen() {
                                             styles.bar,
                                             {
                                                 height: `${Math.max(day.ratio * 100, 4)}%`,
-                                                backgroundColor: day.isToday ? ACCENT : day.ratio > 0 ? ACCENT + '66' : '#E5E7EB',
+                                                backgroundColor: day.isToday
+                                                    ? ACCENT
+                                                    : day.ratio > 0
+                                                    ? ACCENT + '66'
+                                                    : '#E5E7EB',
                                             },
                                         ]}
                                     />
                                 </View>
-                                <Text style={[styles.barLabel, day.isToday && { color: ACCENT, fontWeight: '600' }]}>
+                                <Text
+                                    style={[
+                                        styles.barLabel,
+                                        day.isToday && { color: ACCENT, fontWeight: '600' },
+                                    ]}
+                                >
                                     {day.day}
                                 </Text>
                             </View>
@@ -119,12 +159,14 @@ export default function ProgressScreen() {
                 </View>
 
                 {/* Her alışkanlığın streak'i */}
-                {habits.filter(h => h.isActive).length > 0 && (
+                {activeHabits.length > 0 && (
                     <View style={styles.sectionCard}>
                         <Text style={styles.sectionTitle}>Alışkanlık serileri</Text>
-                        {habits.filter(h => h.isActive).map(habit => (
+                        {activeHabits.map(habit => (
                             <View key={habit.id} style={styles.habitRow}>
-                                <Text style={styles.habitName} numberOfLines={1}>{habit.title}</Text>
+                                <Text style={styles.habitName} numberOfLines={1}>
+                                    {habit.title}
+                                </Text>
                                 <View style={styles.habitStreak}>
                                     <Ionicons name="flame" size={14} color="#F97316" />
                                     <Text style={styles.habitStreakNum}>{habit.streak}</Text>
@@ -133,13 +175,19 @@ export default function ProgressScreen() {
                         ))}
                     </View>
                 )}
-
             </ScrollView>
         </SafeAreaView>
     );
 }
 
-function StatCard({ icon, iconColor, label, value }: {
+// ─── Alt bileşen ──────────────────────────────────────────────────────────
+
+function StatCard({
+    icon,
+    iconColor,
+    label,
+    value,
+}: {
     icon: React.ComponentProps<typeof Ionicons>['name'];
     iconColor: string;
     label: string;
@@ -154,10 +202,18 @@ function StatCard({ icon, iconColor, label, value }: {
     );
 }
 
+// ─── Stiller ──────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
     safe: { flex: 1, backgroundColor: '#FAFAFA' },
     scroll: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40, gap: 14 },
-    pageTitle: { fontSize: 28, fontWeight: '800', color: '#111827', letterSpacing: -0.5, marginBottom: 4 },
+    pageTitle: {
+        fontSize: 28,
+        fontWeight: '800',
+        color: '#111827',
+        letterSpacing: -0.5,
+        marginBottom: 4,
+    },
 
     levelCard: {
         backgroundColor: '#fff',
@@ -166,34 +222,54 @@ const styles = StyleSheet.create({
         borderWidth: 0.5,
         borderColor: '#E5E7EB',
     },
-    levelTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
+    levelTop: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: 16,
+    },
     levelLabel: { fontSize: 13, color: '#6B7280', fontWeight: '500', marginBottom: 2 },
     levelNum: { fontSize: 48, fontWeight: '800', color: '#111827', lineHeight: 54 },
     xpCircle: {
-        width: 64, height: 64, borderRadius: 32,
+        width: 64,
+        height: 64,
+        borderRadius: 32,
         backgroundColor: ACCENT + '18',
-        alignItems: 'center', justifyContent: 'center',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     xpCircleNum: { fontSize: 18, fontWeight: '800', color: ACCENT },
     xpCircleLabel: { fontSize: 11, color: ACCENT, fontWeight: '600', marginTop: -2 },
-    progressBg: { height: 8, backgroundColor: '#E5E7EB', borderRadius: 4, overflow: 'hidden', marginBottom: 6 },
+    progressBg: {
+        height: 8,
+        backgroundColor: '#E5E7EB',
+        borderRadius: 4,
+        overflow: 'hidden',
+        marginBottom: 6,
+    },
     progressFill: { height: '100%', backgroundColor: ACCENT, borderRadius: 4 },
     progressHint: { fontSize: 12, color: '#9CA3AF' },
 
     statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
     statCard: {
-        flex: 1, minWidth: '44%',
+        flex: 1,
+        minWidth: '44%',
         backgroundColor: '#fff',
-        borderRadius: 16, padding: 16,
-        borderWidth: 0.5, borderColor: '#E5E7EB',
+        borderRadius: 16,
+        padding: 16,
+        borderWidth: 0.5,
+        borderColor: '#E5E7EB',
         gap: 4,
     },
     statValue: { fontSize: 22, fontWeight: '700', color: '#111827', marginTop: 4 },
     statLabel: { fontSize: 12, color: '#6B7280' },
 
     sectionCard: {
-        backgroundColor: '#fff', borderRadius: 20, padding: 20,
-        borderWidth: 0.5, borderColor: '#E5E7EB',
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        padding: 20,
+        borderWidth: 0.5,
+        borderColor: '#E5E7EB',
     },
     sectionTitle: { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 16 },
 
@@ -204,9 +280,12 @@ const styles = StyleSheet.create({
     barLabel: { fontSize: 11, color: '#9CA3AF' },
 
     habitRow: {
-        flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         paddingVertical: 10,
-        borderBottomWidth: 0.5, borderBottomColor: '#F3F4F6',
+        borderBottomWidth: 0.5,
+        borderBottomColor: '#F3F4F6',
     },
     habitName: { flex: 1, fontSize: 14, color: '#374151', marginRight: 8 },
     habitStreak: { flexDirection: 'row', alignItems: 'center', gap: 3 },

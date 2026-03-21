@@ -26,7 +26,7 @@ export async function updateHabit(updated: Habit): Promise<void> {
     await saveHabits(existing.map(h => (h.id === updated.id ? updated : h)));
 }
 
-export async function deleteHabit(id: string): Promise<void> {
-    const existing = await loadHabits();
-    await saveHabits(existing.filter(h => h.id !== id));
-}
+// NOT: deleteHabit burada TANIMLI DEĞİL.
+// Silme işlemi AppContext üzerinden setHabits([...filtered]) ile yapılır.
+// setHabits içi zaten saveHabits'i çağırdığı için ayrı bir deleteHabit
+// fonksiyonu çifte yazma ve yarış koşuluna yol açar.

@@ -39,7 +39,7 @@ export default function HabitFormScreen() {
         navigation.setOptions({ title: editId ? 'Düzenle' : 'Yeni alışkanlık' });
     }, [editId]);
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!title.trim()) {
             Alert.alert('Hata', 'Alışkanlık adı boş olamaz.');
             return;
@@ -57,17 +57,18 @@ export default function HabitFormScreen() {
                 description: description.trim() || undefined,
                 category, targetCount: count, targetUnit, xpReward,
             };
-            setHabits(habits.map(h => h.id === editId ? updated : h));
+            await setHabits(habits.map(h => h.id === editId ? updated : h));
         } else {
             const newHabit: Habit = {
                 id: generateId(),
                 title: title.trim(),
                 description: description.trim() || undefined,
                 category, targetCount: count, targetUnit, xpReward,
-                isActive: true, streak: 0,
+                isActive: true,
+                streak: 0,
                 createdAt: new Date().toISOString(),
             };
-            setHabits([...habits, newHabit]);
+            await setHabits([...habits, newHabit]);
         }
         navigation.goBack();
     };
@@ -82,7 +83,6 @@ export default function HabitFormScreen() {
                 contentContainerStyle={styles.content}
                 keyboardShouldPersistTaps="handled"
             >
-                {/* Ad */}
                 <Field label="Alışkanlık adı">
                     <TextInput
                         style={styles.input}
@@ -95,7 +95,6 @@ export default function HabitFormScreen() {
                     />
                 </Field>
 
-                {/* Açıklama */}
                 <Field label="Açıklama (isteğe bağlı)">
                     <TextInput
                         style={[styles.input, styles.inputMulti]}
@@ -109,7 +108,6 @@ export default function HabitFormScreen() {
                     />
                 </Field>
 
-                {/* Kategori */}
                 <Field label="Kategori">
                     <View style={styles.chipGrid}>
                         {(Object.keys(CATEGORIES) as HabitCategory[]).map(key => {
@@ -135,7 +133,6 @@ export default function HabitFormScreen() {
                     </View>
                 </Field>
 
-                {/* Hedef */}
                 <Field label="Günlük hedef">
                     <View style={styles.targetRow}>
                         <TextInput
@@ -162,7 +159,6 @@ export default function HabitFormScreen() {
                     </View>
                 </Field>
 
-                {/* XP ödülü */}
                 <Field label="XP ödülü">
                     <View style={styles.xpRow}>
                         {XP_OPTIONS.map(val => (
@@ -179,7 +175,6 @@ export default function HabitFormScreen() {
                     </View>
                 </Field>
 
-                {/* Kaydet */}
                 <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.85}>
                     <Text style={styles.saveBtnText}>
                         {editId ? 'Değişiklikleri kaydet' : 'Alışkanlık ekle'}
@@ -204,10 +199,8 @@ const ACCENT = '#8B5CF6';
 const styles = StyleSheet.create({
     scroll: { flex: 1, backgroundColor: '#FAFAFA' },
     content: { padding: 20, gap: 20, paddingBottom: 48 },
-
     field: { gap: 8 },
     fieldLabel: { fontSize: 13, fontWeight: '600', color: '#374151', letterSpacing: 0.2 },
-
     input: {
         backgroundColor: '#fff',
         borderRadius: 12, borderWidth: 0.5, borderColor: '#E5E7EB',
@@ -215,7 +208,6 @@ const styles = StyleSheet.create({
         fontSize: 15, color: '#111827',
     },
     inputMulti: { minHeight: 72, textAlignVertical: 'top' },
-
     chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     catChip: {
         flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -224,7 +216,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff',
     },
     catChipText: { fontSize: 13, color: '#6B7280', fontWeight: '500' },
-
     targetRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
     targetInput: { width: 72, textAlign: 'center' },
     unitBtn: {
@@ -235,7 +226,6 @@ const styles = StyleSheet.create({
     unitBtnActive: { backgroundColor: ACCENT + '12', borderColor: ACCENT },
     unitText: { fontSize: 14, color: '#6B7280', fontWeight: '500' },
     unitTextActive: { color: ACCENT, fontWeight: '600' },
-
     xpRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
     xpChip: {
         paddingHorizontal: 16, paddingVertical: 10,
@@ -245,7 +235,6 @@ const styles = StyleSheet.create({
     xpChipActive: { backgroundColor: ACCENT, borderColor: ACCENT },
     xpChipText: { fontSize: 14, color: '#6B7280', fontWeight: '600' },
     xpChipTextActive: { color: '#fff' },
-
     saveBtn: {
         backgroundColor: ACCENT, borderRadius: 16,
         paddingVertical: 16, alignItems: 'center',

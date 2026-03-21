@@ -18,6 +18,11 @@ export interface Habit {
   xpReward: number;
   isActive: boolean;
   streak: number;
+  /**
+   * Alışkanlığın en son "done" olarak işaretlendiği gün (YYYY-MM-DD).
+   * Streak hesabı bu alana dayanır — undefined ise henüz hiç yapılmamış demektir.
+   */
+  lastDoneDate?: string;
   createdAt: string; // ISO string
 }
 

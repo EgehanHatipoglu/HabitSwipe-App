@@ -7,7 +7,6 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
-import { deleteHabit } from '../storage/habitsStorage';
 import { CATEGORIES } from '../constants/categories';
 import type { Habit } from '../types/habit.types';
 import type { RootStackParamList } from '../types/navigation.types';
@@ -26,22 +25,23 @@ export default function HabitsScreen() {
             [
                 { text: 'Vazgeç', style: 'cancel' },
                 {
-                    text: 'Sil', style: 'destructive',
+                    text: 'Sil',
+                    style: 'destructive',
                     onPress: async () => {
-                        const updated = habits.filter(h => h.id !== habit.id);
-                        setHabits(updated);
-                        await deleteHabit(habit.id);
+                        // setHabits zaten saveHabits'i await ediyor,
+                        // ayrıca deleteHabit çağırmaya gerek yok.
+                        await setHabits(habits.filter(h => h.id !== habit.id));
                     },
                 },
             ],
         );
     };
 
-    const handleToggleActive = (habit: Habit) => {
+    const handleToggleActive = async (habit: Habit) => {
         const updated = habits.map(h =>
             h.id === habit.id ? { ...h, isActive: !h.isActive } : h,
         );
-        setHabits(updated);
+        await setHabits(updated);
     };
 
     return (
@@ -111,12 +111,10 @@ function HabitRow({
             onPress={onEdit}
             activeOpacity={0.7}
         >
-            {/* Kategori ikonu */}
             <View style={[styles.iconWrap, { backgroundColor: cat.color + '18' }]}>
                 <Ionicons name={cat.icon as any} size={22} color={habit.isActive ? cat.color : '#9CA3AF'} />
             </View>
 
-            {/* Bilgi */}
             <View style={styles.rowBody}>
                 <Text style={[styles.rowTitle, !habit.isActive && styles.rowTitleInactive]}>
                     {habit.title}
@@ -136,7 +134,6 @@ function HabitRow({
                 </View>
             </View>
 
-            {/* Aksiyonlar */}
             <View style={styles.actions}>
                 <TouchableOpacity onPress={onToggle} hitSlop={8} style={styles.actionBtn}>
                     <Ionicons
@@ -169,7 +166,6 @@ const styles = StyleSheet.create({
     },
     list: { paddingHorizontal: 20, paddingBottom: 40 },
     separator: { height: 0.5, backgroundColor: '#E5E7EB', marginLeft: 68 },
-
     row: {
         flexDirection: 'row', alignItems: 'center',
         paddingVertical: 14, gap: 12,
@@ -188,7 +184,6 @@ const styles = StyleSheet.create({
     dot: { fontSize: 12, color: '#D1D5DB' },
     actions: { flexDirection: 'row', gap: 2, alignItems: 'center' },
     actionBtn: { padding: 6 },
-
     emptyWrap: {
         flex: 1, alignItems: 'center', justifyContent: 'center',
         paddingHorizontal: 40, gap: 10,
