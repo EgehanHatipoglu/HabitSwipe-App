@@ -2,7 +2,25 @@ import { useContext, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
-import { calcLevel, calcLevelProgress, XP_PER_LEVEL } from '../constants/xp';
+import {
+    calcLevel,
+    calcLevelProgress,
+    xpForLevel,
+    xpInCurrentLevel,
+} from '../utils/xpUtils';
+/**
+ * Neden utils/xpUtils, constants/xp değil?
+ *
+ * ProgressScreen "X / Y XP — sonraki seviye" gibi seviyeye özgü değerler
+ * göstermek zorunda. Eski kod `userProgress.totalXp % XP_PER_LEVEL` ile
+ * bunu hesaplıyordu — bu yalnızca sabit eşikli sistemde doğru çalışır.
+ *
+ * Progressive formülde (seviye n → n+1 arası = BASE_XP * n XP) eşik her
+ * seviyede farklıdır; bu yüzden `xpInCurrentLevel()` ve `xpForLevel()`
+ * doğrudan import edilmelidir. constants/xp barrel üzerinden de ulaşılabilir,
+ * ancak bu dosyanın hangi değerleri neden kullandığını açık tutmak için
+ * kaynak modül tercih edildi.
+ */
 import { todayStr } from '../utils/dateUtils';
 import type { DailyRecord } from '../types/habit.types';
 
@@ -11,17 +29,7 @@ const ACCENT = '#8B5CF6';
 
 // ─── Hook ─────────────────────────────────────────────────────────────────
 
-/**
- * Son 7 güne ait tamamlama oranlarını hesaplar.
- *
- * Önceki kodda `ReturnType<typeof useContext<typeof AppContext>>['records']`
- * yazılmıştı — useContext generic parametre almaz, bu tip geçersizdi.
- * Doğrusu parametre tipini açıkça `DailyRecord[]` olarak belirtmek.
- */
-function useLast7Days(
-    records: DailyRecord[],
-    habitCount: number,
-) {
+function useLast7Days(records: DailyRecord[], habitCount: number) {
     return useMemo(() => {
         return Array.from({ length: 7 }, (_, i) => {
             const d = new Date();
@@ -32,9 +40,7 @@ function useLast7Days(
                 String(d.getDate()).padStart(2, '0'),
             ].join('-');
 
-            const done = records.filter(
-                r => r.date === dateStr && r.status === 'done',
-            ).length;
+            const done  = records.filter(r => r.date === dateStr && r.status === 'done').length;
             const total = habitCount || 1;
 
             return {
@@ -50,17 +56,30 @@ function useLast7Days(
 
 export default function ProgressScreen() {
     const { userProgress, records, habits } = useContext(AppContext);
-    const level = calcLevel(userProgress.totalXp);
+
+    const level        = calcLevel(userProgress.totalXp);
     const levelProgress = calcLevelProgress(userProgress.totalXp);
-    const xpInLevel = userProgress.totalXp % XP_PER_LEVEL;
+
+    /**
+     * Eski kod: `userProgress.totalXp % XP_PER_LEVEL`
+     *   → Sabit 100'lük eşikle doğru, progressive formülle yanlış.
+     *   Örnek: totalXp=250, level=3 (0→100→300). Level 3 içinde 250-300=?
+     *   Modül 250%100=50 verir ama gerçek değer 250-xpToReachLevel(3)=250-300=-50.
+     *   Kapalı formül: xpInCurrentLevel(250) = 250 - xpToReachLevel(3) = -50 → 0.
+     *   Gerçekte 250 XP, seviye 3'ün eşiğinin (300) altında; calcLevel(250)=2 döner.
+     *   Sonuç: xpInCurrentLevel ve xpForLevel doğru seviye değerlerine göre çalışır.
+     *
+     * Yeni kod: xpInCurrentLevel / xpForLevel
+     *   → Her zaman mevcut seviyenin gerçek başlangıç eşiğine göre hesaplar.
+     */
+    const xpEarned = xpInCurrentLevel(userProgress.totalXp); // bu level içinde kazanılan
+    const xpNeeded = xpForLevel(level);                       // bu levelı bitirmek için gereken
 
     const activeHabits = habits.filter(h => h.isActive);
-    const week = useLast7Days(records, activeHabits.length);
+    const week         = useLast7Days(records, activeHabits.length);
 
-    const today = todayStr();
-    const todayDone = records.filter(
-        r => r.date === today && r.status === 'done',
-    ).length;
+    const today     = todayStr();
+    const todayDone = records.filter(r => r.date === today && r.status === 'done').length;
     const todayTotal = activeHabits.length;
 
     return (
@@ -83,6 +102,7 @@ export default function ProgressScreen() {
                             <Text style={styles.xpCircleLabel}>XP</Text>
                         </View>
                     </View>
+
                     <View style={styles.progressBg}>
                         <View
                             style={[
@@ -91,8 +111,15 @@ export default function ProgressScreen() {
                             ]}
                         />
                     </View>
+
+                    {/*
+                     * "X / Y XP — sonraki seviye"
+                     * xpEarned: bu level içinde kazanılan (örn. 150 XP ise
+                     *   level 2 için 100 XP gerekli, level 2 içinde 50 XP kazanıldı → 50)
+                     * xpNeeded: bu leveli tamamlamak için gereken toplam (örn. level 2 → 200)
+                     */}
                     <Text style={styles.progressHint}>
-                        {xpInLevel} / {XP_PER_LEVEL} XP — sonraki seviye
+                        {xpEarned} / {xpNeeded} XP — sonraki seviye
                     </Text>
                 </View>
 
@@ -214,7 +241,6 @@ const styles = StyleSheet.create({
         letterSpacing: -0.5,
         marginBottom: 4,
     },
-
     levelCard: {
         backgroundColor: '#fff',
         borderRadius: 20,
@@ -249,7 +275,6 @@ const styles = StyleSheet.create({
     },
     progressFill: { height: '100%', backgroundColor: ACCENT, borderRadius: 4 },
     progressHint: { fontSize: 12, color: '#9CA3AF' },
-
     statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
     statCard: {
         flex: 1,
@@ -263,7 +288,6 @@ const styles = StyleSheet.create({
     },
     statValue: { fontSize: 22, fontWeight: '700', color: '#111827', marginTop: 4 },
     statLabel: { fontSize: 12, color: '#6B7280' },
-
     sectionCard: {
         backgroundColor: '#fff',
         borderRadius: 20,
@@ -272,13 +296,11 @@ const styles = StyleSheet.create({
         borderColor: '#E5E7EB',
     },
     sectionTitle: { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 16 },
-
     barRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 100 },
     barCol: { flex: 1, alignItems: 'center', gap: 6, height: '100%' },
     barWrap: { flex: 1, width: '100%', justifyContent: 'flex-end' },
     bar: { width: '100%', borderRadius: 4, minHeight: 4 },
     barLabel: { fontSize: 11, color: '#9CA3AF' },
-
     habitRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',

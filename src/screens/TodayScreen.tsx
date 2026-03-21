@@ -14,106 +14,72 @@ import { AppContext } from '../context/AppContext';
 import SwipeStack from '../components/SwipeStack';
 import EmptyState from '../components/EmptyState';
 import XpBurst from '../components/XpBurst';
+import { useHabitActions } from '../hooks/useHabitActions';
 
-import type { Habit, SwipeStatus, DailyRecord } from '../types/habit.types';
+import type { Habit, SwipeStatus } from '../types/habit.types';
 import type { RootStackParamList } from '../types/navigation.types';
 import { todayStr } from '../utils/dateUtils';
 import { hasTodayRecord } from '../utils/duplicateGuard';
-import { updateStreakOnDone, updateStreakOnMissed } from '../utils/streakUtils';
-import { updateHabitOnDone, updateHabitOnMissed } from '../utils/habitStreakUtils';
-import { calcLevel, calcLevelProgress } from '../constants/xp';
+import { calcLevel, calcLevelProgress } from '../utils/xpUtils';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export default function TodayScreen() {
     const navigation = useNavigation<Nav>();
-    const {
-        habits,
-        setHabits,
-        records,
-        setRecords,
-        userProgress,
-        setUserProgress,
-        setPendingLevelUp,
-    } = useContext(AppContext);
+    const { habits, records, userProgress, setPendingLevelUp } = useContext(AppContext);
+    const { handleSwipe } = useHabitActions();
 
     const today = todayStr();
 
-    const getPendingHabits = () =>
-        habits.filter(h => h.isActive && !hasTodayRecord(records, h.id, today));
-
-    const [queue, setQueue] = useState<Habit[]>(getPendingHabits);
-    const [doneCount, setDoneCount] = useState(
-        records.filter(r => r.date === today && r.status === 'done').length,
+    // ── Türetilmiş UI state ────────────────────────────────────────────────
+    // queue ve doneCount, habits/records değiştikçe useEffect ile güncellenir.
+    // commitSwipe her iki state'i de optimistic olarak güncellediğinden
+    // swipe anında otomatik yenilenir — ayrı setQueue çağrısına gerek yok.
+    const [queue, setQueue] = useState<Habit[]>(() =>
+        habits.filter(h => h.isActive && !hasTodayRecord(records, h.id, today)),
+    );
+    const [doneCount, setDoneCount] = useState<number>(
+        () => records.filter(r => r.date === today && r.status === 'done').length,
     );
     const [xpBurst, setXpBurst] = useState<number | null>(null);
 
     useEffect(() => {
-        setQueue(getPendingHabits());
-        setDoneCount(
-            records.filter(r => r.date === today && r.status === 'done').length,
-        );
-    }, [habits, records]);
+        setQueue(habits.filter(h => h.isActive && !hasTodayRecord(records, h.id, today)));
+        setDoneCount(records.filter(r => r.date === today && r.status === 'done').length);
+    }, [habits, records, today]);
 
-    const handleSwipe = useCallback(
+    // ── Swipe handler — yalnızca UI sorumluluğu ───────────────────────────
+    // İş mantığı (XP hesabı, streak, record oluşturma, disk yazımı)
+    // tamamen useHabitActions hook'una taşındı.
+    // Bu fonksiyon sadece sonucu alıp animasyon / navigasyon tetikler.
+    const onSwipe = useCallback(
         async (habit: Habit, status: SwipeStatus) => {
-            if (hasTodayRecord(records, habit.id, today)) return;
+            const result = await handleSwipe(habit, status);
 
-            // 1. Günlük kaydı oluştur
-            const newRecord: DailyRecord = {
-                id: `${habit.id}-${today}`,
-                habitId: habit.id,
-                date: today,
-                status,
-                xpEarned: status === 'done' ? habit.xpReward : 0,
-                createdAt: new Date().toISOString(),
-            };
-            await setRecords([...records, newRecord]);
+            // null → çifte swipe ya da disk hatası; UI dokunma
+            if (!result) return;
 
-            // 2. Kartı kuyruktan çıkar
-            setQueue(prev => prev.filter(h => h.id !== habit.id));
+            if (result.xpEarned > 0) {
+                setXpBurst(result.xpEarned);
+            }
 
-            // 3. Habit streak güncelle
-            const updatedHabits = habits.map(h => {
-                if (h.id !== habit.id) return h;
-                return status === 'done'
-                    ? updateHabitOnDone(h)
-                    : updateHabitOnMissed(h);
-            });
-            await setHabits(updatedHabits);
-
-            if (status === 'done') {
-                setDoneCount(c => c + 1);
-
-                // 4. XP ve level güncelle
-                const newXp = userProgress.totalXp + habit.xpReward;
-                const oldLevel = calcLevel(userProgress.totalXp);
-                const newLevel = calcLevel(newXp);
-
-                await setUserProgress({
-                    ...updateStreakOnDone(userProgress),
-                    totalXp: newXp,
-                    level: newLevel,
-                    totalDone: userProgress.totalDone + 1,
-                });
-
-                setXpBurst(habit.xpReward);
-
-                if (newLevel > oldLevel) {
-                    setPendingLevelUp(newLevel);
-                    setTimeout(() => navigation.navigate('LevelUp', { newLevel }), 600);
-                }
-            } else {
-                await setUserProgress(updateStreakOnMissed(userProgress));
+            if (result.didLevelUp) {
+                setPendingLevelUp(result.newLevel);
+                setTimeout(
+                    () => navigation.navigate('LevelUp', { newLevel: result.newLevel }),
+                    600,
+                );
             }
         },
-        [habits, records, userProgress, today],
+        [handleSwipe, setPendingLevelUp, navigation],
     );
 
+    // ── Türetilmiş gösterge değerleri ─────────────────────────────────────
     const totalActiveCount = habits.filter(h => h.isActive).length;
-    const level = calcLevel(userProgress.totalXp);
-    const progress = calcLevelProgress(userProgress.totalXp);
+    const level            = calcLevel(userProgress.totalXp);
+    const progress         = calcLevelProgress(userProgress.totalXp);
 
+    // ── Render ────────────────────────────────────────────────────────────
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
             <SafeAreaView style={styles.safe}>
@@ -150,7 +116,7 @@ export default function TodayScreen() {
 
                 <View style={styles.stackArea}>
                     {queue.length > 0 ? (
-                        <SwipeStack habits={queue} onSwipe={handleSwipe} />
+                        <SwipeStack habits={queue} onSwipe={onSwipe} />
                     ) : (
                         <EmptyState
                             completedCount={doneCount}

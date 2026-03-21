@@ -1,8 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { UserProgress } from '../types/habit.types';
-
-const PROGRESS_KEY = 'user_progress';
-const ONBOARDED_KEY = 'onboarded';
+import { HABITS_KEY, RECORDS_KEY, PROGRESS_KEY, ONBOARDED_KEY } from './keys';
 
 const DEFAULT_PROGRESS: UserProgress = {
     totalXp: 0,
@@ -39,6 +37,11 @@ export async function setOnboarded(): Promise<void> {
     await AsyncStorage.setItem(ONBOARDED_KEY, 'true');
 }
 
+/**
+ * Tüm uygulama verilerini siler.
+ * Key'ler artık merkezi 'keys.ts' dosyasından geliyor;
+ * eskiden HABITS_KEY ve RECORDS_KEY burada hardcode edilmişti.
+ */
 export async function clearAllData(): Promise<void> {
-    await AsyncStorage.multiRemove([PROGRESS_KEY, ONBOARDED_KEY, 'habits', 'daily_records']);
+    await AsyncStorage.multiRemove([HABITS_KEY, RECORDS_KEY, PROGRESS_KEY, ONBOARDED_KEY]);
 }
