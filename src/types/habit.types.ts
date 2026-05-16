@@ -23,6 +23,11 @@ export interface Habit {
    * Streak hesabı bu alana dayanır — undefined ise henüz hiç yapılmamış demektir.
    */
   lastDoneDate?: string;
+  /**
+   * Alışkanlığın tetikleneceği günlük saat — "HH:MM" formatında, opsiyonel.
+   * Belirlenirse, o saatte TimedAlert ekranı otomatik açılır.
+   */
+  scheduledTime?: string;
   createdAt: string; // ISO string
 }
 

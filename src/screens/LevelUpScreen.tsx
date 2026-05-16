@@ -7,14 +7,14 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList } from '../types/navigation.types';
+import { C } from '../constants/colors';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LevelUp'>;
 
 const { width: W, height: H } = Dimensions.get('window');
-const ACCENT = '#8B5CF6';
+const ACCENT = C.PRIMARY;
 
-// Konfeti parçacığı renkleri
-const CONFETTI_COLORS = ['#8B5CF6', '#F59E0B', '#10B981', '#EF4444', '#3B82F6', '#F97316', '#EC4899'];
+const CONFETTI_COLORS = [C.PRIMARY, '#F59E0B', '#10B981', '#EF4444', '#3B82F6', '#F97316', '#EC4899'];
 
 // Tek bir konfeti parçacığı
 function ConfettiPiece({ delay, color }: { delay: number; color: string }) {

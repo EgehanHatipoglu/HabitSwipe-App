@@ -21,4 +21,4 @@ export const SCHEMA_VERSION_KEY     = 'schema_version' as const;
  * Yeni bir migration eklendiğinde bu sayıyı bir artır ve
  * migrations.ts'e karşılık gelen adımı ekle.
  */
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 3;

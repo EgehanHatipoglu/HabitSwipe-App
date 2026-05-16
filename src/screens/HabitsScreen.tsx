@@ -8,6 +8,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
 import { CATEGORIES } from '../constants/categories';
+import { C } from '../constants/colors';
 import type { Habit } from '../types/habit.types';
 import type { RootStackParamList } from '../types/navigation.types';
 
@@ -122,13 +123,20 @@ function HabitRow({
                 <View style={styles.rowMeta}>
                     <Text style={styles.rowMetaText}>{cat.label}</Text>
                     <Text style={styles.dot}>·</Text>
-                    <Ionicons name="flash" size={11} color="#8B5CF6" />
+                    <Ionicons name="flash" size={11} color={C.PRIMARY} />
                     <Text style={styles.rowMetaText}>+{habit.xpReward} XP</Text>
                     {habit.streak > 0 && (
                         <>
                             <Text style={styles.dot}>·</Text>
                             <Ionicons name="flame" size={11} color="#F97316" />
                             <Text style={styles.rowMetaText}>{habit.streak} gün</Text>
+                        </>
+                    )}
+                    {habit.scheduledTime && (
+                        <>
+                            <Text style={styles.dot}>·</Text>
+                            <Ionicons name="time-outline" size={11} color={C.PRIMARY} />
+                            <Text style={styles.rowMetaText}>{habit.scheduledTime}</Text>
                         </>
                     )}
                 </View>
@@ -151,16 +159,16 @@ function HabitRow({
 }
 
 const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: '#FAFAFA' },
+    safe: { flex: 1, backgroundColor: C.SAFE_BG },
     header: {
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
         paddingHorizontal: 20, paddingTop: 20, paddingBottom: 12,
     },
-    title: { fontSize: 28, fontWeight: '800', color: '#111827', letterSpacing: -0.5 },
-    subtitle: { fontSize: 14, color: '#6B7280', marginTop: 2 },
+    title: { fontSize: 28, fontWeight: '800', color: C.TEXT_MAIN, letterSpacing: -0.5, fontFamily: 'Arial' },
+    subtitle: { fontSize: 14, color: C.TEXT_SUB, marginTop: 2 },
     addBtn: {
         width: 42, height: 42, borderRadius: 21,
-        backgroundColor: '#8B5CF6',
+        backgroundColor: C.PRIMARY,
         alignItems: 'center', justifyContent: 'center',
         marginTop: 4,
     },
@@ -191,7 +199,7 @@ const styles = StyleSheet.create({
     emptyTitle: { fontSize: 20, fontWeight: '700', color: '#111827', textAlign: 'center', marginTop: 8 },
     emptyDesc: { fontSize: 14, color: '#6B7280', textAlign: 'center', lineHeight: 20 },
     emptyBtn: {
-        marginTop: 8, backgroundColor: '#8B5CF6',
+        marginTop: 8, backgroundColor: C.PRIMARY,
         paddingHorizontal: 24, paddingVertical: 12,
         borderRadius: 20,
     },

@@ -2,30 +2,18 @@ import { useContext, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
+import { C } from '../constants/colors';
 import {
     calcLevel,
     calcLevelProgress,
     xpForLevel,
     xpInCurrentLevel,
 } from '../utils/xpUtils';
-/**
- * Neden utils/xpUtils, constants/xp değil?
- *
- * ProgressScreen "X / Y XP — sonraki seviye" gibi seviyeye özgü değerler
- * göstermek zorunda. Eski kod `userProgress.totalXp % XP_PER_LEVEL` ile
- * bunu hesaplıyordu — bu yalnızca sabit eşikli sistemde doğru çalışır.
- *
- * Progressive formülde (seviye n → n+1 arası = BASE_XP * n XP) eşik her
- * seviyede farklıdır; bu yüzden `xpInCurrentLevel()` ve `xpForLevel()`
- * doğrudan import edilmelidir. constants/xp barrel üzerinden de ulaşılabilir,
- * ancak bu dosyanın hangi değerleri neden kullandığını açık tutmak için
- * kaynak modül tercih edildi.
- */
 import { todayStr } from '../utils/dateUtils';
 import type { DailyRecord } from '../types/habit.types';
 
 const DAYS = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
-const ACCENT = '#8B5CF6';
+const ACCENT = C.PRIMARY;
 
 // ─── Hook ─────────────────────────────────────────────────────────────────
 
@@ -60,20 +48,8 @@ export default function ProgressScreen() {
     const level        = calcLevel(userProgress.totalXp);
     const levelProgress = calcLevelProgress(userProgress.totalXp);
 
-    /**
-     * Eski kod: `userProgress.totalXp % XP_PER_LEVEL`
-     *   → Sabit 100'lük eşikle doğru, progressive formülle yanlış.
-     *   Örnek: totalXp=250, level=3 (0→100→300). Level 3 içinde 250-300=?
-     *   Modül 250%100=50 verir ama gerçek değer 250-xpToReachLevel(3)=250-300=-50.
-     *   Kapalı formül: xpInCurrentLevel(250) = 250 - xpToReachLevel(3) = -50 → 0.
-     *   Gerçekte 250 XP, seviye 3'ün eşiğinin (300) altında; calcLevel(250)=2 döner.
-     *   Sonuç: xpInCurrentLevel ve xpForLevel doğru seviye değerlerine göre çalışır.
-     *
-     * Yeni kod: xpInCurrentLevel / xpForLevel
-     *   → Her zaman mevcut seviyenin gerçek başlangıç eşiğine göre hesaplar.
-     */
-    const xpEarned = xpInCurrentLevel(userProgress.totalXp); // bu level içinde kazanılan
-    const xpNeeded = xpForLevel(level);                       // bu levelı bitirmek için gereken
+    const xpEarned = xpInCurrentLevel(userProgress.totalXp);
+    const xpNeeded = xpForLevel(level);
 
     const activeHabits = habits.filter(h => h.isActive);
     const week         = useLast7Days(records, activeHabits.length);
@@ -112,12 +88,6 @@ export default function ProgressScreen() {
                         />
                     </View>
 
-                    {/*
-                     * "X / Y XP — sonraki seviye"
-                     * xpEarned: bu level içinde kazanılan (örn. 150 XP ise
-                     *   level 2 için 100 XP gerekli, level 2 içinde 50 XP kazanıldı → 50)
-                     * xpNeeded: bu leveli tamamlamak için gereken toplam (örn. level 2 → 200)
-                     */}
                     <Text style={styles.progressHint}>
                         {xpEarned} / {xpNeeded} XP — sonraki seviye
                     </Text>
@@ -232,14 +202,15 @@ function StatCard({
 // ─── Stiller ──────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: '#FAFAFA' },
+    safe: { flex: 1, backgroundColor: C.SAFE_BG },
     scroll: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40, gap: 14 },
     pageTitle: {
         fontSize: 28,
         fontWeight: '800',
-        color: '#111827',
+        color: C.TEXT_MAIN,
         letterSpacing: -0.5,
         marginBottom: 4,
+        fontFamily: 'Arial',
     },
     levelCard: {
         backgroundColor: '#fff',

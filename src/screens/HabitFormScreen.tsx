@@ -1,6 +1,6 @@
 import { useState, useContext, useLayoutEffect } from 'react';
 import {
-    View, Text, TextInput, TouchableOpacity,
+    View, Text, TextInput, TouchableOpacity, Switch,
     ScrollView, StyleSheet, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -8,6 +8,7 @@ import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-n
 import { Ionicons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
 import { CATEGORIES } from '../constants/categories';
+import { C } from '../constants/colors';
 import type { Habit, HabitCategory, TargetUnit } from '../types/habit.types';
 import type { RootStackParamList } from '../types/navigation.types';
 
@@ -34,6 +35,8 @@ export default function HabitFormScreen() {
     const [targetCount, setTarget] = useState(String(existing?.targetCount ?? '1'));
     const [targetUnit, setUnit] = useState<TargetUnit>(existing?.targetUnit ?? 'times');
     const [xpReward, setXp] = useState(existing?.xpReward ?? 10);
+    const [useSchedule, setUseSchedule] = useState(!!existing?.scheduledTime);
+    const [scheduledTime, setScheduledTime] = useState(existing?.scheduledTime ?? '08:00');
 
     useLayoutEffect(() => {
         navigation.setOptions({ title: editId ? 'Düzenle' : 'Yeni alışkanlık' });
@@ -49,6 +52,15 @@ export default function HabitFormScreen() {
             Alert.alert('Hata', 'Hedef sayısı geçerli bir sayı olmalı.');
             return;
         }
+        if (useSchedule) {
+            const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+            if (!timeRegex.test(scheduledTime)) {
+                Alert.alert('Hata', 'Saat formatı SS:DD olmalı (ör. 08:30).');
+                return;
+            }
+        }
+
+        const resolvedTime = useSchedule ? scheduledTime : undefined;
 
         if (editId && existing) {
             const updated: Habit = {
@@ -56,6 +68,7 @@ export default function HabitFormScreen() {
                 title: title.trim(),
                 description: description.trim() || undefined,
                 category, targetCount: count, targetUnit, xpReward,
+                scheduledTime: resolvedTime,
             };
             await setHabits(habits.map(h => h.id === editId ? updated : h));
         } else {
@@ -66,6 +79,7 @@ export default function HabitFormScreen() {
                 category, targetCount: count, targetUnit, xpReward,
                 isActive: true,
                 streak: 0,
+                scheduledTime: resolvedTime,
                 createdAt: new Date().toISOString(),
             };
             await setHabits([...habits, newHabit]);
@@ -175,6 +189,31 @@ export default function HabitFormScreen() {
                     </View>
                 </Field>
 
+                <Field label="Belirli saatte hatırlat">
+                    <View style={styles.scheduleRow}>
+                        <Text style={styles.scheduleDesc}>
+                            Belirtilen saatte ekranda bu alışkanlık çıkar
+                        </Text>
+                        <Switch
+                            value={useSchedule}
+                            onValueChange={setUseSchedule}
+                            trackColor={{ false: '#E5E7EB', true: ACCENT + '55' }}
+                            thumbColor={useSchedule ? ACCENT : '#fff'}
+                        />
+                    </View>
+                    {useSchedule && (
+                        <TextInput
+                            style={[styles.input, styles.timeInput]}
+                            placeholder="SS:DD (ör. 08:30)"
+                            placeholderTextColor="#9CA3AF"
+                            value={scheduledTime}
+                            onChangeText={setScheduledTime}
+                            keyboardType="numbers-and-punctuation"
+                            maxLength={5}
+                        />
+                    )}
+                </Field>
+
                 <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.85}>
                     <Text style={styles.saveBtnText}>
                         {editId ? 'Değişiklikleri kaydet' : 'Alışkanlık ekle'}
@@ -194,10 +233,10 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     );
 }
 
-const ACCENT = '#8B5CF6';
+const ACCENT = C.PRIMARY;
 
 const styles = StyleSheet.create({
-    scroll: { flex: 1, backgroundColor: '#FAFAFA' },
+    scroll: { flex: 1, backgroundColor: C.SAFE_BG },
     content: { padding: 20, gap: 20, paddingBottom: 48 },
     field: { gap: 8 },
     fieldLabel: { fontSize: 13, fontWeight: '600', color: '#374151', letterSpacing: 0.2 },
@@ -235,6 +274,19 @@ const styles = StyleSheet.create({
     xpChipActive: { backgroundColor: ACCENT, borderColor: ACCENT },
     xpChipText: { fontSize: 14, color: '#6B7280', fontWeight: '600' },
     xpChipTextActive: { color: '#fff' },
+    scheduleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: '#fff',
+        borderRadius: 12,
+        borderWidth: 0.5,
+        borderColor: '#E5E7EB',
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+    },
+    scheduleDesc: { fontSize: 13, color: '#6B7280', flex: 1, marginRight: 8 },
+    timeInput: { marginTop: 8, textAlign: 'center', fontWeight: '600', fontSize: 18, letterSpacing: 2 },
     saveBtn: {
         backgroundColor: ACCENT, borderRadius: 16,
         paddingVertical: 16, alignItems: 'center',

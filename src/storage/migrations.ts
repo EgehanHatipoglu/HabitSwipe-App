@@ -25,12 +25,13 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
+    HABITS_KEY,
     RECORDS_KEY,
     SCHEMA_VERSION_KEY,
     CURRENT_SCHEMA_VERSION,
 } from './keys';
 import { pruneRecords } from './recordsStorage';
-import type { DailyRecord } from '../types/habit.types';
+import type { DailyRecord, Habit } from '../types/habit.types';
 
 // ─── Migration adımları ────────────────────────────────────────────────────
 
@@ -88,20 +89,29 @@ const MIGRATIONS: MigrationStep[] = [
         },
     },
 
-    // ── Gelecek migration örneği ─────────────────────────────────────────
-    // {
-    //     version: 3,
-    //     description: 'Add habitColor field with default value',
-    //     run: async () => {
-    //         const raw = await AsyncStorage.getItem(HABITS_KEY);
-    //         if (!raw) return;
-    //         const habits = JSON.parse(raw).map((h: Habit) => ({
-    //             ...h,
-    //             color: h.color ?? '#8B5CF6',
-    //         }));
-    //         await AsyncStorage.setItem(HABITS_KEY, JSON.stringify(habits));
-    //     },
-    // },
+    // ── v3: scheduledTime alanı eklendi ─────────────────────────────────
+    // Eski kayıtlarda bu alan eksik — undefined olarak bırakmak yeterli
+    // (TypeScript'te opsiyonel alan), ancak JSON.parse sonrası bazı kod
+    // yollarında undefined yerine eksik key olabileceği için normalize ediyoruz.
+    {
+        version: 3,
+        description: 'Normalize scheduledTime field on existing habits (set to undefined)',
+        run: async () => {
+            const raw = await AsyncStorage.getItem(HABITS_KEY);
+            if (!raw) return;
+            let habits: Habit[];
+            try {
+                habits = JSON.parse(raw);
+            } catch {
+                return;
+            }
+            const normalized = habits.map(h => ({
+                ...h,
+                scheduledTime: h.scheduledTime ?? undefined,
+            }));
+            await AsyncStorage.setItem(HABITS_KEY, JSON.stringify(normalized));
+        },
+    },
 ];
 
 // ─── Runner ───────────────────────────────────────────────────────────────

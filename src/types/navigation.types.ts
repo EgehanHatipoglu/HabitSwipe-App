@@ -1,13 +1,14 @@
 export type RootStackParamList = {
     Onboarding: undefined;
     Main: undefined;
-    HabitForm: { habitId?: string }; // undefined = yeni, string = düzenle
+    HabitForm: { habitId?: string };
     LevelUp: { newLevel: number };
+    TimedAlert: { habitId: string };
 };
 
 export type TabParamList = {
     Today: undefined;
-    Progress: undefined;
+    Dashboard: undefined;
     Habits: undefined;
     Settings: undefined;
 };

@@ -21,6 +21,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import type { Habit, SwipeStatus } from '../types/habit.types';
 import { CATEGORIES } from '../constants/categories';
+import { C } from '../constants/colors';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -141,7 +142,7 @@ export default function HabitCard({ habit, onSwipe, isTop, index }: Props) {
                         <Text style={styles.metaText}>{habit.streak} gün</Text>
                     </View>
                     <View style={styles.metaChip}>
-                        <Ionicons name="flash" size={14} color="#8B5CF6" />
+                        <Ionicons name="flash" size={14} color={C.PRIMARY} />
                         <Text style={styles.metaText}>+{habit.xpReward} XP</Text>
                     </View>
                     <View style={styles.metaChip}>

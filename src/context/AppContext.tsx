@@ -5,6 +5,7 @@ import {
     useRef,
     useCallback,
     ReactNode,
+    useMemo,
 } from 'react';
 import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -14,6 +15,8 @@ import { loadRecords, saveRecords, pruneRecords } from '../storage/recordsStorag
 import { loadProgress, saveProgress, loadIsOnboarded, setOnboarded } from '../storage/userStorage';
 import { HABITS_KEY, RECORDS_KEY, PROGRESS_KEY } from '../storage/keys';
 import { runMigrations } from '../storage/migrations';
+import { todayStr } from '../utils/dateUtils';
+import { hasTodayRecord } from '../utils/duplicateGuard';
 
 // ─── Yardımcı ──────────────────────────────────────────────────────────────
 
@@ -68,6 +71,10 @@ interface AppContextType {
 
     pendingLevelUp: number | null;
     setPendingLevelUp: (level: number | null) => void;
+
+    pendingTimedHabit: Habit | null;
+    setPendingTimedHabit: (habit: Habit | null) => void;
+    snoozeTimedHabit: (habitId: string) => void;
 }
 
 export const AppContext = createContext<AppContextType>({} as AppContextType);
@@ -90,6 +97,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const [records, setRecordsState]          = useState<DailyRecord[]>([]);
     const [userProgress, setProgressState]    = useState<UserProgress>(DEFAULT_PROGRESS);
     const [pendingLevelUp, setPendingLevelUp] = useState<number | null>(null);
+    const [pendingTimedHabit, setPendingTimedHabit] = useState<Habit | null>(null);
+
+    // Snooze ref: habitId → snooze bitiş zamanı (ms)
+    const snoozeRef = useRef<Record<string, number>>({});
+    // Timer'ın alışkanlık listesini güncel görmesi için ref
+    const habitsTimerRef   = useRef<Habit[]>([]);
+    const recordsTimerRef  = useRef<DailyRecord[]>([]);
 
     // ── Rollback için ref snapshots ────────────────────────────────────────
     // useCallback'in stale closure sorunundan kaçınmak için state değerleri
@@ -99,9 +113,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const recordsRef  = useRef(records);
     const progressRef = useRef(userProgress);
 
-    useEffect(() => { habitsRef.current   = habits;       }, [habits]);
-    useEffect(() => { recordsRef.current  = records;      }, [records]);
-    useEffect(() => { progressRef.current = userProgress; }, [userProgress]);
+    useEffect(() => { habitsRef.current        = habits;   }, [habits]);
+    useEffect(() => { recordsRef.current       = records;  }, [records]);
+    useEffect(() => { progressRef.current      = userProgress; }, [userProgress]);
+    useEffect(() => { habitsTimerRef.current   = habits;   }, [habits]);
+    useEffect(() => { recordsTimerRef.current  = records;  }, [records]);
 
     // ── İlk yükleme ────────────────────────────────────────────────────────
     useEffect(() => {
@@ -128,6 +144,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
             setProgressState(savedProgress);
             setIsLoading(false);
         })();
+    }, []);
+
+    // ── Zamanlı alışkanlık timer ───────────────────────────────────────────
+    // Her dakika tetiklenir; scheduledTime = şu anki saat olan ve bugün henüz
+    // tamamlanmamış aktif alışkanlıkları pendingTimedHabit olarak set eder.
+    useEffect(() => {
+        const checkScheduled = () => {
+            const now = new Date();
+            const hh = String(now.getHours()).padStart(2, '0');
+            const mm = String(now.getMinutes()).padStart(2, '0');
+            const currentTime = `${hh}:${mm}`;
+            const today = todayStr();
+
+            const triggered = habitsTimerRef.current.find(h => {
+                if (!h.isActive || !h.scheduledTime) return false;
+                if (h.scheduledTime !== currentTime) return false;
+                if (hasTodayRecord(recordsTimerRef.current, h.id, today)) return false;
+                const snoozeUntil = snoozeRef.current[h.id];
+                if (snoozeUntil && Date.now() < snoozeUntil) return false;
+                return true;
+            });
+
+            if (triggered) {
+                setPendingTimedHabit(triggered);
+            }
+        };
+
+        // İlk kontrol hemen (isLoading bittikten sonra başlayacak)
+        const timer = setInterval(checkScheduled, 60_000);
+        return () => clearInterval(timer);
     }, []);
 
     // ── Tekil setter'lar (HabitsScreen, SettingsScreen vb. için) ──────────
@@ -211,6 +257,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setIsOnboarded(true);
     }, []);
 
+    // Snooze: 10 dk sonra tekrar tetiklensin diye snoozeRef güncellenir.
+    // TimedAlertScreen bu fonksiyonu çağırabilmek için context'ten alır.
+    const snoozeTimedHabit = useCallback((habitId: string) => {
+        snoozeRef.current[habitId] = Date.now() + 10 * 60 * 1000;
+        setPendingTimedHabit(null);
+    }, []);
+
     return (
         <AppContext.Provider
             value={{
@@ -226,6 +279,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 commitSwipe,
                 pendingLevelUp,
                 setPendingLevelUp,
+                pendingTimedHabit,
+                setPendingTimedHabit,
+                snoozeTimedHabit,
             }}
         >
             {children}

@@ -11,8 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
 import { clearAllData } from '../storage/userStorage';
-
-const ACCENT = '#8B5CF6';
+import { C } from '../constants/colors';
 
 export default function SettingsScreen() {
     const { setHabits, setRecords, setUserProgress } = useContext(AppContext);
@@ -96,7 +95,7 @@ function SettingRow({
 }
 
 const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: '#FAFAFA' },
+    safe: { flex: 1, backgroundColor: C.SAFE_BG },
     scroll: { padding: 20, gap: 24, paddingBottom: 48 },
     title: {
         fontSize: 28,

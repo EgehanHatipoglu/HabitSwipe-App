@@ -11,6 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { AppContext } from '../context/AppContext';
+import { C } from '../constants/colors';
 import SwipeStack from '../components/SwipeStack';
 import EmptyState from '../components/EmptyState';
 import XpBurst from '../components/XpBurst';
@@ -139,7 +140,7 @@ export default function TodayScreen() {
 }
 
 const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: '#FAFAFA' },
+    safe: { flex: 1, backgroundColor: C.SAFE_BG },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -148,10 +149,10 @@ const styles = StyleSheet.create({
         paddingTop: 16,
         paddingBottom: 8,
     },
-    greeting: { fontSize: 28, fontWeight: '800', color: '#111827', letterSpacing: -0.5 },
-    date: { fontSize: 14, color: '#6B7280', marginTop: 2, textTransform: 'capitalize' },
+    greeting: { fontSize: 28, fontWeight: '800', color: C.TEXT_MAIN, letterSpacing: -0.5, fontFamily: 'Arial' },
+    date: { fontSize: 14, color: C.TEXT_SUB, marginTop: 2, textTransform: 'capitalize' },
     levelBadge: {
-        backgroundColor: '#8B5CF6',
+        backgroundColor: C.PRIMARY,
         paddingHorizontal: 14,
         paddingVertical: 6,
         borderRadius: 20,
@@ -168,14 +169,14 @@ const styles = StyleSheet.create({
     xpBarBg: {
         flex: 1,
         height: 6,
-        backgroundColor: '#E5E7EB',
+        backgroundColor: C.BORDER,
         borderRadius: 3,
         overflow: 'hidden',
     },
-    xpBarFill: { height: '100%', backgroundColor: '#8B5CF6', borderRadius: 3 },
+    xpBarFill: { height: '100%', backgroundColor: C.PRIMARY, borderRadius: 3 },
     xpLabel: {
         fontSize: 12,
-        color: '#8B5CF6',
+        color: C.PRIMARY,
         fontWeight: '600',
         minWidth: 52,
         textAlign: 'right',
